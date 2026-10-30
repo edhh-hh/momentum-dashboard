@@ -1,0 +1,176 @@
+<!doctype html>
+<html lang="zh-CN"><head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex,nofollow"><meta name="referrer" content="no-referrer">
+<title>动量扫描面板</title>
+<style>
+:root{--bg:#0f1115;--card:#171a21;--line:#262b36;--fg:#e6e8ee;--mut:#8a93a6;--grn:#22c55e;--red:#ef4444;--amb:#f59e0b;--blu:#60a5fa}
+*{box-sizing:border-box}body{margin:0;background:var(--bg);color:var(--fg);font:14px/1.5 -apple-system,BlinkMacSystemFont,"PingFang SC","Microsoft YaHei",sans-serif}
+header{padding:14px 16px;border-bottom:1px solid var(--line);display:flex;flex-wrap:wrap;gap:8px 16px;align-items:center}
+h1{font-size:18px;margin:0}h2{font-size:15px;margin:0 0 8px}.mut{color:var(--mut)}.small{font-size:12px}
+main{padding:12px 16px;max-width:1500px;margin:0 auto}
+.card{background:var(--card);border:1px solid var(--line);border-radius:10px;padding:12px;margin-bottom:12px}
+.banner{border-radius:10px;padding:10px 12px;margin-bottom:10px;font-weight:600}
+.b-sig{background:#123d22;border:1px solid var(--grn)}.b-exit{background:#3d1212;border:1px solid var(--red)}
+.b-warn{background:#3a2a07;border:1px solid var(--amb)}.b-info{background:#13243d;border:1px solid var(--blu)}
+.tw{overflow-x:auto;-webkit-overflow-scrolling:touch}
+table{border-collapse:collapse;width:100%;font-size:13px;white-space:nowrap}
+th,td{padding:6px 8px;border-bottom:1px solid var(--line);text-align:right}
+th{color:var(--mut);font-weight:500;background:var(--card)}
+td.l,th.l{text-align:left}td.wrap{white-space:normal;min-width:220px;max-width:360px;text-align:left}
+th:first-child,td:first-child{position:sticky;left:0;background:var(--card);text-align:left;font-weight:700}
+tr.act td,tr.act td:first-child{background:#10301c}
+.miss{color:#6b7280;font-style:italic}.up{color:var(--grn)}.dn{color:var(--red)}
+.tag{display:inline-block;padding:1px 6px;border-radius:6px;font-size:12px}
+.t-trig{background:var(--grn);color:#000}.t-form{background:var(--amb);color:#000}.t-inv{background:#374151}.t-exit{background:var(--red);color:#fff}
+select,input,button{background:#0b0d11;color:var(--fg);border:1px solid var(--line);border-radius:6px;padding:6px 8px;font-size:15px}
+button{cursor:pointer;background:#1f2937}button.link{background:none;border:none;color:var(--mut);font-size:12px;padding:0;text-decoration:underline}
+#lock{max-width:360px;margin:12vh auto;padding:20px}#lock input[type=password]{width:100%;margin:8px 0}
+#err{color:var(--red);font-weight:700;min-height:1.5em}
+ul{margin:4px 0;padding-left:20px}.disc{color:var(--amb);font-weight:600}.hidden{display:none}
+</style></head><body>
+<div id="lock" class="card">
+  <h1>动量扫描面板</h1>
+  <p class="mut small">数据已加密，请输入密码解锁。</p>
+  <form id="lockForm" autocomplete="on">
+    <input id="pw" type="password" autocomplete="current-password" placeholder="密码" required>
+    <label class="small mut"><input id="remember" type="checkbox"> 在此设备上记住密码</label>
+    <div id="err"></div>
+    <button id="unlockBtn" type="submit">解锁</button>
+  </form>
+</div>
+<div id="app" class="hidden">
+<header><h1>动量扫描面板 · Ross Cameron 策略</h1>
+<span id="scanTime" class="mut"></span><span id="refresh" class="mut small"></span>
+<button class="link" id="logout">锁定/忘记密码</button></header>
+<main>
+<div id="banners"></div>
+<div class="card"><h2>当前候选（≥4/5 支柱）</h2><div id="candSummary" class="mut small"></div><div class="tw"><table id="cand"></table></div></div>
+<div class="card"><h2>今日信号记录</h2><div class="tw"><table id="sig"></table></div></div>
+<div class="card"><h2>历史候选（最近 <span id="hd"></span> 天）</h2>
+<label class="mut">日期 <select id="histDate"></select></label> <span id="histInfo" class="mut small"></span>
+<div class="tw" style="margin-top:8px"><table id="hist"></table></div>
+<h2 style="margin-top:12px">当日信号</h2><div class="tw"><table id="histSig"></table></div></div>
+<div class="card"><h2>策略规则（简要）</h2><ul>
+<li>五大支柱：股价 $2–20；相对成交量 ≥5 倍；涨幅 ≥10%；流通股 &lt;2000 万；有新闻催化（无新闻但为扫描范围内涨幅第一也算通过）。满足 ≥4 条为候选。</li>
+<li>入场：拉升后的第一次回调，回撤 ≤50%，收盘不破 VWAP、不破 9EMA，回调缩量；突破前一根 1 分钟 K 线高点即触发（<span class="tag t-trig">已触发</span>），未突破为 <span class="tag t-form">形成中</span>。</li>
+<li>止损 = 回调低点；目标 = 入场 + 2 × 风险（2:1）。交易时段 7:00–10:00 美东。</li>
+<li>出场警示（近似）：长上影线、大阴线、收盘跌破 9EMA、假突破。</li>
+<li>“缺失”= 数据源没拿到；“—”= 形态无效所以没有入场/止损等数值。</li>
+</ul><p class="disc">免费数据可能有延迟，仅供参考，不构成投资建议。</p>
+<p class="mut small">交易日 7:00–9:55 美东每 5 分钟扫描一次；本页每 60 秒重新获取并解密。数据源：Nasdaq 公开报价、Yahoo Finance、Finviz、StockAnalysis。</p></div>
+</main></div>
+<script>
+'use strict';
+const HOLIDAYS=new Set(["2026-01-01","2026-01-19","2026-02-16","2026-04-03","2026-05-25","2026-06-19","2026-07-03","2026-09-07","2026-11-26","2026-12-25","2027-01-01","2027-01-18","2027-02-15","2027-03-26","2027-05-31","2027-06-18","2027-07-05","2027-09-06","2027-11-25","2027-12-24"]);
+const $=id=>document.getElementById(id);
+const MISS='<span class="miss">缺失</span>', NA='<span class="miss">—</span>';
+const esc=s=>String(s).replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const isM=v=>v===null||v===undefined||v===''||(typeof v==='number'&&!isFinite(v));
+const num=(v,d=2)=>isM(v)||!isFinite(+v)?MISS:esc((+v).toFixed(d));
+const pct=v=>isM(v)?MISS:`<span class="${+v>=0?'up':'dn'}">${(+v>=0?'+':'')+(+v).toFixed(1)}%</span>`;
+const big=v=>{if(isM(v))return MISS;v=+v;return v>=1e9?(v/1e9).toFixed(2)+'B':v>=1e6?(v/1e6).toFixed(2)+'M':v>=1e3?(v/1e3).toFixed(0)+'K':String(v)};
+const STL={'triggered':['已触发','t-trig'],'setup forming':['形成中','t-form'],'invalid':['无效','t-inv']};
+const NARROW_RISK=0.3; // 止损占价低于 0.3% 视为实盘难执行
+const SLOW_SCAN_MIN=2; // a scan slower than this was interrupted (box sleep) -> the signal was actually late
+function riskPct(entry,stop){const e=+entry,s=+stop;if(!isFinite(e)||!isFinite(s)||e<=0)return null;return (e-s)/e*100}
+function riskCell(entry,stop){const p=riskPct(entry,stop);if(p===null)return NA;
+  return (p<NARROW_RISK?'<span class="tag t-inv" title="止损太窄，实盘大概率无法成交">':'')+p.toFixed(2)+'%'+(p<NARROW_RISK?'</span>':'')}
+function execTag(entry,stop){const p=riskPct(entry,stop);if(p===null)return NA;
+  return p<NARROW_RISK?'<span class="miss">过窄</span>':'可'};
+const st=s=>{if(isM(s))return MISS;const x=STL[s]||[s,'t-inv'];return `<span class="tag ${x[1]}">${esc(x[0])}</span>`};
+const actOK=(score,s)=>+score>=4&&(s==='setup forming'||s==='triggered');
+const lvl=(v,s,d=4)=>isM(v)?(s==='invalid'?NA:MISS):num(v,d);
+const etParts=d=>{const p={};new Intl.DateTimeFormat('en-US',{timeZone:'America/New_York',hourCycle:'h23',year:'numeric',month:'2-digit',day:'2-digit',hour:'2-digit',minute:'2-digit',weekday:'short'}).formatToParts(d).forEach(x=>p[x.type]=x.value);return p};
+const etDate=d=>{const p=etParts(d);return `${p.year}-${p.month}-${p.day}`};
+const etFmt=iso=>{if(!iso)return '缺失';const p=etParts(new Date(iso));return `${p.month}/${p.day} ${p.hour}:${p.minute} ET`};
+const warnList=w=>Array.isArray(w)?w:(isM(w)?[]:String(w).split('; ').filter(Boolean));
+
+// ---------- crypto ----------
+const b64=s=>Uint8Array.from(atob(s),c=>c.charCodeAt(0));
+let PW=null, KEYS=new Map(), DATA=null;
+async function deriveKey(pw,saltB64,iter){
+  const id=saltB64+'|'+iter; if(KEYS.has(id))return KEYS.get(id);
+  const base=await crypto.subtle.importKey('raw',new TextEncoder().encode(pw),'PBKDF2',false,['deriveKey']);
+  const k=await crypto.subtle.deriveKey({name:'PBKDF2',hash:'SHA-256',salt:b64(saltB64),iterations:iter},base,{name:'AES-GCM',length:256},false,['decrypt']);
+  KEYS.clear();KEYS.set(id,k);return k}
+async function fetchDecrypt(pw){
+  const r=await fetch('data.enc.json?t='+Date.now(),{cache:'no-store'});
+  if(!r.ok)throw new Error('NET 获取数据失败 HTTP '+r.status);
+  const env=await r.json();
+  if(env.v!==1||!env.salt||!env.iv||!env.ct||!(env.iter>=310000))throw new Error('NET 数据格式不对');
+  const key=await deriveKey(pw,env.salt,env.iter);
+  let plain;
+  try{plain=await crypto.subtle.decrypt({name:'AES-GCM',iv:b64(env.iv)},key,b64(env.ct))}
+  catch(e){const err=new Error('BADPW');err.badpw=true;throw err}
+  const stream=new Blob([plain]).stream().pipeThrough(new DecompressionStream('gzip'));
+  return JSON.parse(await new Response(stream).text())}
+
+// ---------- render ----------
+const HEAD=['代码','现价','涨幅','相对量','流通股','新闻','支柱','形态','入场','止损','风险/股','止损占价%','2:1目标','VWAP','9EMA','无效原因'];
+const thead=cols=>'<tr>'+cols.map(c=>`<th class="${['新闻','无效原因','出场警示','代码','时间'].includes(c)?'l':''}">${c}</th>`).join('')+'</tr>';
+function candRow(r,warn,withTime){
+  const s=r.setup_state, a=actOK(r.pillars_met,s);
+  return `<tr class="${a?'act':''}">${withTime?`<td>${esc(etFmt(r.scan_time_et))}</td>`:''}<td>${esc(r.ticker)}</td><td>${num(r.price,+r.price<10?3:2)}</td><td>${pct(r.change_pct)}</td><td>${isM(r.rvol)?MISS:num(r.rvol,1)+'x'}</td><td>${big(r.float)}</td>`+
+  `<td class="wrap">${isM(r.news_headline)?(isM(r.news_note)?MISS:'<span class="miss">'+esc(r.news_note)+'</span>'):esc(r.news_headline)}</td><td>${isM(r.pillars_met)?MISS:esc(r.pillars_met)+'/5'}</td><td>${st(s)}${warn?' <span class="tag t-exit">'+esc(warn)+'</span>':''}</td>`+
+  `<td>${lvl(r.entry,s)}</td><td>${lvl(r.stop,s)}</td><td>${lvl(r.risk_per_share,s)}</td><td>${s==='invalid'?NA:riskCell(r.entry,r.stop)}</td><td>${lvl(r.target_2r,s)}</td><td>${num(r.vwap,3)}</td><td>${num(r.ema9,3)}</td>`+
+  `<td class="wrap">${s==='invalid'?(isM(r.invalid_reason)?MISS:esc(r.invalid_reason)):NA}</td></tr>`}
+function sigTable(el,rows){
+  if(!rows.length){el.innerHTML='<tr><td class="l mut" style="position:static">暂无记录</td></tr>';return}
+  el.innerHTML=thead(['代码','时间','类型','状态','支柱','现价','入场','止损','风险/股','止损占价%','可执行','2:1目标','出场警示'])+rows.map(r=>
+   `<tr class="${r.kind==='entry'?'act':''}"><td>${esc(r.ticker)}</td><td>${esc(etFmt(r.scan_time_et))}</td><td>${r.kind==='entry'?'入场':r.kind==='exit'?'<span class="tag t-exit">出场警示</span>':esc(r.kind)}</td><td>${st(r.kind==='exit'?r.setup_state:r.state)}</td>`+
+   `<td>${isM(r.pillars_met)?MISS:esc(r.pillars_met)+'/5'}</td><td>${num(r.price,3)}</td><td>${num(r.entry,4)}</td><td>${num(r.stop,4)}</td><td>${num(r.risk_per_share,4)}</td><td>${riskCell(r.entry,r.stop)}</td><td>${execTag(r.entry,r.stop)}</td><td>${num(r.target_2r,4)}</td><td class="l">${isM(r.exit_warning)?NA:esc(r.exit_warning)}</td></tr>`).join('')}
+const objs=t=>t.rows.map(a=>Object.fromEntries(t.cols.map((c,i)=>[c,a[i]])));
+function renderHist(){
+  const date=$('histDate').value; if(!DATA||!date)return;
+  const rows=objs(DATA.history).filter(r=>(r.scan_time_et||'').startsWith(date)).reverse();
+  const sig=objs(DATA.signals).filter(r=>(r.scan_time_et||'').startsWith(date));
+  $('histInfo').textContent=`${new Set(rows.map(r=>r.scan_time_et)).size} 次扫描，${rows.length} 行候选`;
+  $('hist').innerHTML=rows.length?thead(['时间',...HEAD])+rows.map(r=>candRow(r,'',true)).join(''):'<tr><td class="l mut" style="position:static">该日无候选记录</td></tr>';
+  sigTable($('histSig'),sig)}
+function render(D){
+  DATA=D; const L=D.latest, now=new Date();
+  const gen=L.generated_at_et?new Date(L.generated_at_et):null, ageMin=gen?(now-gen)/60000:null;
+  const fin=L.finished_at_et?new Date(L.finished_at_et):null, runMin=fin&&gen?(fin-gen)/60000:null;
+  $('scanTime').innerHTML='最近扫描：'+(gen?esc(etFmt(L.generated_at_et))+`（${ageMin<120?Math.max(0,Math.round(ageMin))+' 分钟前':(ageMin/60).toFixed(1)+' 小时前'}${runMin!==null&&runMin>=1?`，耗时 ${runMin.toFixed(1)} 分钟`:''}）`:MISS);
+  $('refresh').textContent='解密于 '+now.toLocaleTimeString('zh-CN',{hour12:false});
+  const p=etParts(now), today=etDate(now), mins=+p.hour*60+ +p.minute;
+  const tradingDay=!['Sat','Sun'].includes(p.weekday)&&!HOLIDAYS.has(today), inWin=tradingDay&&mins>=420&&mins<600;
+  const fresh=gen&&etDate(gen)===today, alerted=new Set(D.alerted_today||[]);
+  const cands=L.candidates||[];
+  let b='';
+  if(!inWin) b+=`<div class="banner b-info">非扫描时段（扫描时间：交易日 7:00–10:00 美东${tradingDay?'':'；今天休市/周末'}）。下面是最近一次扫描的结果。</div>`;
+  else if(ageMin===null||ageMin>10) b+=`<div class="banner b-warn">⚠ 数据已过时：最近扫描是 ${ageMin===null?'未知时间':Math.round(ageMin)+' 分钟前'}，后台扫描或发布可能中断。</div>`;
+  const slow=runMin!==null&&runMin>=SLOW_SCAN_MIN;
+  const act=fresh?cands.filter(c=>actOK(c.pillars_met,c.setup_state)):[];
+  if(act.length) b+=`<div class="banner ${slow?'b-warn':'b-sig'}">${slow?'⚠ 过期信号（这次扫描本身就是迟到的那一次，下面的价格早已不在，不要照价进场，最多当形态参考）':'📈 当前信号'}：`+act.map(c=>{const p=riskPct(c.entry,c.stop);return `${esc(c.ticker)} ${STL[c.setup_state][0]}（${c.pillars_met}/5，入场 ${num(c.entry,4)}，止损 ${num(c.stop,4)}，目标 ${num(c.target_2r,4)}${p!==null&&p<NARROW_RISK?`，<span class="miss">止损仅占价 ${p.toFixed(2)}%，实盘难执行</span>`:''}）`}).join('；')+'</div>';
+  const ex=fresh?cands.filter(c=>alerted.has(c.ticker)&&warnList(c.exit_warnings).length):[];
+  if(ex.length) b+='<div class="banner b-exit">⚠ 出场警示：'+ex.map(c=>`${esc(c.ticker)}：${esc(warnList(c.exit_warnings).join('、'))}`).join('；')+'</div>';
+  if(inWin&&!act.length&&!ex.length) b+='<div class="banner b-info">暂无符合条件的入场信号。</div>';
+  if(runMin!==null&&runMin>=SLOW_SCAN_MIN) b+=`<div class="banner b-warn">⚠ 这次扫描跑了 ${runMin.toFixed(1)} 分钟才出结果（正常应低于 2 分钟），多半是电脑休眠打断了扫描。信号在 ${esc(etFmt(L.finished_at_et))} 才真正可见，入场价请按当时市价重新判断，页面显示的入场/目标只能当作形态参考。</div>`;
+  if((L.errors||[]).length) b+=`<div class="banner b-warn small">本次扫描数据源错误：${esc(L.errors.join('；'))}</div>`;
+  $('banners').innerHTML=b;
+  $('candSummary').textContent=`选股池 ${L.universe_count??'缺失'} 只，深度扫描 ${L.scanned_count??'缺失'} 只，候选 ${cands.length} 只；涨幅第一（$2–20）：${L.top_gainer_2_20||'缺失'}`;
+  $('cand').innerHTML=cands.length?thead(HEAD)+cands.map(c=>candRow(c,alerted.has(c.ticker)?warnList(c.exit_warnings).join('、'):'',false)).join(''):'<tr><td class="l mut" style="position:static">本次扫描没有 ≥4/5 的候选</td></tr>';
+  sigTable($('sig'),objs(D.signals).filter(r=>(r.scan_time_et||'').startsWith(today)));
+  $('hd').textContent=D.history_days||30;
+  const dates=[...new Set([...objs(D.history),...objs(D.signals)].map(r=>(r.scan_time_et||'').slice(0,10)).filter(Boolean))].sort().reverse();
+  const sel=$('histDate'), cur=sel.value, opts=dates.map(d=>`<option${d===cur?' selected':''}>${d}</option>`).join('');
+  if(sel.dataset.o!==opts){sel.innerHTML=opts||'<option value="">无</option>';sel.dataset.o=opts}
+  renderHist()}
+
+// ---------- flow ----------
+function lock(msg){PW=null;DATA=null;KEYS.clear();$('app').classList.add('hidden');$('banners').innerHTML='';['cand','sig','hist','histSig'].forEach(i=>$(i).innerHTML='');$('lock').classList.remove('hidden');$('err').textContent=msg||''}
+async function unlock(pw,remember){
+  $('err').textContent='解密中…';$('unlockBtn').disabled=true;
+  try{const D=await fetchDecrypt(pw);PW=pw;sessionStorage.setItem('dash_pw',pw);if(remember)localStorage.setItem('dash_pw',pw);
+    $('pw').value='';$('err').textContent='';$('lock').classList.add('hidden');$('app').classList.remove('hidden');render(D)}
+  catch(e){if(e.badpw){sessionStorage.removeItem('dash_pw');localStorage.removeItem('dash_pw');lock('密码错误')}else{lock(String(e.message).replace(/^NET /,''))}}
+  finally{$('unlockBtn').disabled=false}}
+$('lockForm').addEventListener('submit',e=>{e.preventDefault();unlock($('pw').value,$('remember').checked)});
+$('logout').addEventListener('click',()=>{sessionStorage.removeItem('dash_pw');localStorage.removeItem('dash_pw');lock('')});
+$('histDate').addEventListener('change',renderHist);
+setInterval(async()=>{if(!PW)return;try{render(await fetchDecrypt(PW))}catch(e){if(e.badpw){lock('密码已更改，请重新输入')}else{$('refresh').textContent='刷新失败（'+String(e.message).replace(/^NET /,'')+'），稍后重试'}}},60000);
+const saved=sessionStorage.getItem('dash_pw')||localStorage.getItem('dash_pw');
+if(saved)unlock(saved,false);
+</script></body></html>
